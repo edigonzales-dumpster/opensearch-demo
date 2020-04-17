@@ -17,7 +17,7 @@ import com.a9.opensearch._11.OpenSearchDescription;
 public class MainController {
     private Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
 
-    @GetMapping("/")
+    @GetMapping("/ping")
     public ResponseEntity<String>  ping() {
         logger.info("opensearch demo");
         return new ResponseEntity<String>("opensearch demo", HttpStatus.OK);

@@ -248,6 +248,7 @@
   <xs:element name="Url" type="opensearch:OpenSearchUrl" />
   <xs:complexType name="OpenSearchUrl">
     <xs:attribute name="type" type="xs:string" use="optional" />
+    <xs:attribute name="method" type="xs:string" use="optional" />
     <xs:attribute name="template" type="xs:string" use="optional" />
   </xs:complexType>
 </xs:schema>

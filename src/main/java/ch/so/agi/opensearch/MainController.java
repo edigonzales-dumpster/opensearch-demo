@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.a9.opensearch._11.Image;
@@ -34,7 +35,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 
-import io.micrometer.core.ipc.http.HttpSender.Method;
 
 @Controller
 public class MainController {
@@ -74,6 +74,7 @@ public class MainController {
         suggestJsonUrl.setType("application/x-suggestions+json");
         suggestJsonUrl.setMethod("get");
         suggestJsonUrl.setTemplate(getHost() + "/search/suggestions?q={searchTerms}");
+//        suggestJsonUrl.setTemplate("http://ff.search.yahoo.com/gossip?output=fxjson&command={searchTerms}");
         openSearchDescription.getUrls().add(suggestJsonUrl);
         
 //        Url suggestXmlUrl = new Url();
@@ -94,13 +95,54 @@ public class MainController {
     @RequestMapping(
             value = "/search/suggestions", 
             method = RequestMethod.GET, 
-            headers = "Accept=application/x-suggestions+json",
-            produces = "application/json")    
-    public String jsonSuggestions() {
-        String foo = "asdf";
+            //headers = "Accept=application/x-suggestions+json",
+            produces = {MediaType.APPLICATION_JSON_VALUE})    
+    public ResponseEntity<?> jsonSuggestions(@RequestParam(value="q", required=false) String searchTerms) throws IOException {
+        logger.info("suggestions - searchTerms: " + searchTerms);
         
-        return "";
+        String encodedSearchText = URLEncoder.encode(searchTerms, StandardCharsets.UTF_8.toString());  
+        URL url = new URL(searchServiceUrl+encodedSearchText);
+        logger.info(url.toString());
+        URLConnection request = url.openConnection();
+        request.connect();
+        
+        JsonNode response = objectMapper.readTree(new InputStreamReader((InputStream) request.getContent()));        
+        ArrayNode resultsArray = (ArrayNode) response.get("results");
+
+        ArrayNode suggestions = objectMapper.createArrayNode();
+        suggestions.add(searchTerms);
+        
+        ArrayNode completions = objectMapper.createArrayNode();
+        Iterator<JsonNode> it = resultsArray.iterator();
+        while(it.hasNext()) {
+            JsonNode node = it.next();
+            JsonNode feature = node.get("feature");            
+            completions.add(feature.get("display"));
+        }
+        suggestions.add(completions);
+        
+//        ArrayNode descriptions = objectMapper.createArrayNode();
+//        descriptions.add("");
+//        descriptions.add("");
+//        descriptions.add("");
+//        root.add(descriptions);
+
+          // Will be ignored by Firefox. 
+//        ArrayNode queryUrl = objectMapper.createArrayNode();
+//        queryUrl.add("https://www.google.com/search?q=foo");
+//        queryUrl.add("https://www.google.com/search?q=bar");
+//        queryUrl.add("https://www.google.com/search?q=bubar");
+//        root.add(queryUrl);
+        
+        logger.info(suggestions.toPrettyString());
+        return new ResponseEntity<JsonNode>(suggestions, HttpStatus.OK);
     }
+    
+    
+    // Man hat nur noch den Displaytext zur Verfügung nachdem man auf den Vorschlag 
+    // geklickt hat. Stand heute kann man aber anhand der Klammer (Adresse, Flurname, 
+    // Liegenschaft, ...) auf ein gewisses Mass an Intelligenz zurückgreifen und
+    // die eigentliche Suche resp. dann die Antwort steuern.
     
     
     @GetMapping(value = "/search")
@@ -109,6 +151,8 @@ public class MainController {
         
         String encodedSearchText = URLEncoder.encode(searchTerms, StandardCharsets.UTF_8.toString());        
         URL url = new URL(searchServiceUrl+encodedSearchText);
+        logger.info(url.toString());
+
         URLConnection request = url.openConnection();
         request.connect();
         
@@ -134,7 +178,6 @@ public class MainController {
         model.addAttribute("searchResults", searchResults);
         return "search.result.html";        
     }
-    
     
     private String getHost() {
         return ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();

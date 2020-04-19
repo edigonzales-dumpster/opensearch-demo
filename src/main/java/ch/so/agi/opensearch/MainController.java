@@ -1,27 +1,50 @@
 package ch.so.agi.opensearch;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.math.BigInteger;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.a9.opensearch._11.Image;
 import com.a9.opensearch._11.OpenSearchDescription;
 import com.a9.opensearch._11.Url;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+
+import io.micrometer.core.ipc.http.HttpSender.Method;
 
 @Controller
 public class MainController {
     private Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
+
+    @Value("${app.searchServiceUrl}")
+    private String searchServiceUrl;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @GetMapping("/ping")
     public ResponseEntity<String>  ping() {
@@ -50,7 +73,7 @@ public class MainController {
         Url suggestJsonUrl = new Url();
         suggestJsonUrl.setType("application/x-suggestions+json");
         suggestJsonUrl.setMethod("get");
-        suggestJsonUrl.setTemplate("https://de.wikipedia.org/w/api.php?action=opensearch&amp;format=json&amp;search={searchTerms}");
+        suggestJsonUrl.setTemplate(getHost() + "/search/suggestions?q={searchTerms}");
         openSearchDescription.getUrls().add(suggestJsonUrl);
         
 //        Url suggestXmlUrl = new Url();
@@ -68,12 +91,46 @@ public class MainController {
         return new ResponseEntity<OpenSearchDescription>(openSearchDescription, HttpStatus.OK);
     }
     
+    @RequestMapping(
+            value = "/search/suggestions", 
+            method = RequestMethod.GET, 
+            headers = "Accept=application/x-suggestions+json",
+            produces = "application/json")    
+    public String jsonSuggestions() {
+        String foo = "asdf";
+        
+        return "";
+    }
+    
+    
     @GetMapping(value = "/search")
-    public String searchByQuery(Model model, @RequestParam(value="q", required=false) String searchTerms) {        
+    public String searchByQuery(Model model, @RequestParam(value="q", required=false) String searchTerms) throws IOException {        
         ArrayList<SearchResult> searchResults = new ArrayList<SearchResult>();
-        searchResults.add(new SearchResult("Hallo Resultat."));
-        searchResults.add(new SearchResult(searchTerms));
+        
+        String encodedSearchText = URLEncoder.encode(searchTerms, StandardCharsets.UTF_8.toString());        
+        URL url = new URL(searchServiceUrl+encodedSearchText);
+        URLConnection request = url.openConnection();
+        request.connect();
+        
+        JsonNode root = objectMapper.readTree(new InputStreamReader((InputStream) request.getContent()));        
+        ArrayNode resultsArray = (ArrayNode) root.get("results");
 
+        Iterator<JsonNode> it = resultsArray.iterator();
+        while(it.hasNext()) {
+            JsonNode node = it.next();
+            JsonNode feature = node.get("feature");
+            SearchResult result = new SearchResult();
+            result.setDisplay(feature.get("display").asText());
+            result.setDataproductId(feature.get("dataproduct_id").asText());
+            result.setFeatureId(feature.get("feature_id").asInt());            
+            ArrayNode bbox = (ArrayNode) feature.get("bbox");
+            result.setMinX(bbox.get(0).asDouble());
+            result.setMinY(bbox.get(1).asDouble());
+            result.setMaxX(bbox.get(2).asDouble());
+            result.setMaxY(bbox.get(3).asDouble());
+            searchResults.add(result);
+        }
+     
         model.addAttribute("searchResults", searchResults);
         return "search.result.html";        
     }

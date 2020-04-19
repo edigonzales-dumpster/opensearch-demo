@@ -1,19 +1,90 @@
 package ch.so.agi.opensearch;
 
 public class SearchResult {
-    private String label;
+    private String display;
+    private String dataproductId;
+    private int featureId;
+    private String idFieldName;
+    private double minX;
+    private double minY;
+    private double maxX;
+    private double maxY;
     
     public SearchResult() {}
     
-    public SearchResult(String label) {
-        this.label = label;
+    public SearchResult(String display) {
+        this.display = display;
     }
 
     public String getLabel() {
-        return label;
+        return display;
     }
 
     public void setLabel(String label) {
-        this.label = label;
+        this.display = label;
+    }
+
+    public String getDisplay() {
+        return display;
+    }
+
+    public void setDisplay(String display) {
+        this.display = display;
+    }
+
+    public String getDataproductId() {
+        return dataproductId;
+    }
+
+    public void setDataproductId(String dataproductId) {
+        this.dataproductId = dataproductId;
+    }
+
+    public int getFeatureId() {
+        return featureId;
+    }
+
+    public void setFeatureId(int featureId) {
+        this.featureId = featureId;
+    }
+
+    public String getIdFieldName() {
+        return idFieldName;
+    }
+
+    public void setIdFieldName(String idFieldName) {
+        this.idFieldName = idFieldName;
+    }
+
+    public double getMinX() {
+        return minX;
+    }
+
+    public void setMinX(double minX) {
+        this.minX = minX;
+    }
+
+    public double getMinY() {
+        return minY;
+    }
+
+    public void setMinY(double minY) {
+        this.minY = minY;
+    }
+
+    public double getMaxX() {
+        return maxX;
+    }
+
+    public void setMaxX(double maxX) {
+        this.maxX = maxX;
+    }
+
+    public double getMaxY() {
+        return maxY;
+    }
+
+    public void setMaxY(double maxY) {
+        this.maxY = maxY;
     }
 }
